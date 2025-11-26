@@ -3,19 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Apuração Mesa 2026 - Ao Vivo</title>
+
+  <!-- Evitar cache durante desenvolvimento -->
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
-  <title>Apuração Mesa 2026 - Ao Vivo</title>
-
   <!-- Tailwind + FontAwesome (mantidos) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-
-  <!-- Firebase v8 (compat) -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
@@ -28,11 +25,9 @@
     @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
     .fade-in { animation: fadeIn .45s ease-out; }
 
-    /* Pequeno ajuste visual para barras e botões */
     .small-btn { font-size: .75rem; padding: .5rem .75rem; }
     .candidate-btn { text-align: left; width: 100%; }
 
-    /* Print */
     @media print {
       @page { margin: 1.5cm; size: A4; }
       body { background: white; color: black; -webkit-print-color-adjust: exact; }
@@ -103,7 +98,7 @@
         </div>
       </div>
 
-      <!-- VIEW ADMIN (inclui área de votação: #tela-votacao) -->
+      <!-- VIEW ADMIN -->
       <div id="view-admin" class="card p-6 border-t-4 border-red-500 admin-only flex-col gap-4 hidden no-print">
         <div class="bg-red-50 p-3 rounded border border-red-100 text-red-800 text-xs font-bold mb-4 flex justify-between items-center">
           <span><i class="fa-solid fa-lock mr-2"></i> PAINEL ADMIN</span>
@@ -120,7 +115,7 @@
 
         <p class="text-sm font-bold text-slate-700 mt-2 mb-2">Registrar Voto:</p>
 
-        <!-- TELA VOTAÇÃO (visível quando admin) -->
+        <!-- TELA VOTAÇÃO (sempre presente) -->
         <div id="tela-votacao" class="flex flex-col gap-3">
           <div id="grid-botoes-admin" class="grid grid-cols-2 gap-3"></div>
 
@@ -225,237 +220,392 @@
     </aside>
   </main>
 
-  <!-- SCRIPTS -->
- <script type="module">
-  /**************************************************************************
-   * Firebase v9 Modular
-   **************************************************************************/
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-  import { getDatabase, ref, onValue, update, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+  <!-- Firebase v9 modular script (mapeado e robusto) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import {
+      getDatabase,
+      ref,
+      onValue,
+      update,
+      set
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 
-  const ADMIN_PASSWORD = "Legis2026";
-  const TOTAL_VOTOS = 9;
-  const DB_PATH = "mesa2026";
+    /**************************************************************************
+     * Config e constantes
+     **************************************************************************/
+    const ADMIN_PASSWORD = "Legis2026";
+    const TOTAL_VOTOS = 9;
+    const DB_PATH = "mesa2026";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyA4bHOm0cNf57AKBb7ChGbIMPJdwEe06Jk",
-    authDomain: "mesaespumoso2026.firebaseapp.com",
-    databaseURL: "https://mesaespumoso2026-default-rtdb.firebaseio.com",
-    projectId: "mesaespumoso2026",
-    storageBucket: "mesaespumoso2026.firebasestorage.app",
-    messagingSenderId: "549506281878",
-    appId: "1:549506281878:web:381ea223d34b5620102db7"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyA4bHOm0cNf57AKBb7ChGbIMPJdwEe06Jk",
+      authDomain: "mesaespumoso2026.firebaseapp.com",
+      databaseURL: "https://mesaespumoso2026-default-rtdb.firebaseio.com",
+      projectId: "mesaespumoso2026",
+      storageBucket: "mesaespumoso2026.firebasestorage.app",
+      messagingSenderId: "549506281878",
+      appId: "1:549506281878:web:381ea223d34b5620102db7"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  const dbRef = ref(db, DB_PATH);
+    /**************************************************************************
+     * Dados
+     **************************************************************************/
+    const VEREADORES = [
+      {id: 1, nome: "Dayana Soares (PDT)", nasc: "1979-06-08", cargo_atual: 4},
+      {id: 2, nome: "Denner Senhor (PL)", nasc: "1983-02-26", cargo_atual: 3},
+      {id: 3, nome: "Eduardo Signor (UB)", nasc: "1994-12-23", cargo_atual: 0},
+      {id: 4, nome: "Fabiana Otoni (PP)", nasc: "1982-02-12", cargo_atual: 0},
+      {id: 5, nome: "Leandro Colleraus (PDT)", nasc: "1979-03-05", cargo_atual: 0},
+      {id: 6, nome: "Paulo Flores (PDT)", nasc: "1969-05-18", cargo_atual: 2},
+      {id: 7, nome: "Tomas Fiuza (PP)", nasc: "1989-10-17", cargo_atual: 1},
+    ];
 
-  /**************************************************************************
-   * Dados fixos
-   **************************************************************************/
-  const VEREADORES = [
-    { id: 1, nome: "Dayana Soares (PDT)", nasc: "1979-06-08", cargo_atual: 4 },
-    { id: 2, nome: "Denner Senhor (PL)", nasc: "1983-02-26", cargo_atual: 3 },
-    { id: 3, nome: "Eduardo Signor (UB)", nasc: "1994-12-23", cargo_atual: 0 },
-    { id: 4, nome: "Fabiana Otoni (PP)", nasc: "1982-02-12", cargo_atual: 0 },
-    { id: 5, nome: "Leandro Colleraus (PDT)", nasc: "1979-03-05", cargo_atual: 0 },
-    { id: 6, nome: "Paulo Flores (PDT)", nasc: "1969-05-18", cargo_atual: 2 },
-    { id: 7, nome: "Tomas Fiuza (PP)", nasc: "1989-10-17", cargo_atual: 1 },
-  ];
+    const CARGOS = ["PRESIDENTE", "VICE-PRESIDENTE", "SECRETÁRIO GERAL", "SECRETÁRIO ADJUNTO"];
 
-  const CARGOS = ["PRESIDENTE", "VICE-PRESIDENTE", "SECRETÁRIO GERAL", "SECRETÁRIO ADJUNTO"];
+    /**************************************************************************
+     * Estado local
+     **************************************************************************/
+    let localState = { isAdmin: false, dados: {} };
 
-  let localState = { isAdmin: false, dados: {} };
+    // Inicializa Firebase e cria referência
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db, DB_PATH);
 
-  function safeGet(v, fallback) {
-    return v === undefined || v === null ? fallback : v;
-  }
+    /**************************************************************************
+     * Utilitários
+     **************************************************************************/
+    const el = id => document.getElementById(id);
+    const safeGet = (v, fallback) => (v === undefined || v === null) ? fallback : v;
 
-  /**************************************************************************
-   * Login
-   **************************************************************************/
-  window.loginAdmin = function () {
-    const s = prompt("Senha:");
-    if (s === ADMIN_PASSWORD) {
+    function calcularDiasVida(s) { return new Date(s).getTime(); }
+    function getTextoIdade(s) {
+      const hj = new Date(), ns = new Date(s);
+      let an = hj.getFullYear() - ns.getFullYear();
+      const m = hj.getMonth() - ns.getMonth();
+      if (m < 0 || (m === 0 && hj.getDate() < ns.getDate())) an--;
+      return `${an} anos`;
+    }
+    function isElegivel(vereador, indiceCargoDisputa) {
+      const cargoAlvo = indiceCargoDisputa + 1;
+      const cargoAtual = vereador.cargo_atual;
+      if (cargoAtual === 0) return true;
+      if (cargoAtual === cargoAlvo) return false;
+      if (cargoAlvo > cargoAtual) return false;
+      return true;
+    }
+
+    /**************************************************************************
+     * Listener AO VIVO
+     **************************************************************************/
+    onValue(dbRef, snapshot => {
+      const val = snapshot.val() || {};
+      localState.dados = {
+        indiceCargo: parseInt(safeGet(val.indiceCargo, 0)) || 0,
+        votos: val.votos ? Object.values(val.votos) : [],
+        historico: safeGet(val.historico, {}),
+        status: safeGet(val.status, "votando"),
+        encerrado: safeGet(val.encerrado, false)
+      };
+      // sempre renderiza com proteção
+      renderizarTela(localState.dados);
+      // indica conexão
+      el("conn-indicator")?.classList.remove("hidden");
+    }, err => {
+      console.error("Erro DB:", err);
+      el("status-badge") && (el("status-badge").innerText = "Erro");
+    });
+
+    /**************************************************************************
+     * Login admin (com proteção contra race condition)
+     **************************************************************************/
+    window.loginAdmin = function () {
+      const s = prompt("Senha:");
+      if (s !== ADMIN_PASSWORD) return alert("Senha incorreta.");
       localState.isAdmin = true;
       document.body.classList.add("show-admin");
-      document.getElementById("view-admin").classList.remove("hidden");
-      const btn = document.getElementById("btn-login");
-      btn.innerText = "ADMIN";
-      btn.classList.add("text-red-600", "font-bold");
-      renderizarTela(localState.dados);
-    } else {
-      alert("Senha incorreta.");
-    }
-  };
 
-  /**************************************************************************
-   * Funções auxiliares
-   **************************************************************************/
-  function calcularDiasVida(s) {
-    return new Date(s).getTime();
-  }
+      // Força render admin num pequeno atraso para evitar corrida com listener
+      setTimeout(() => renderizarTela(localState.dados), 60);
 
-  function getTextoIdade(s) {
-    const hoje = new Date();
-    const nasc = new Date(s);
-    let idade = hoje.getFullYear() - nasc.getFullYear();
-    const m = hoje.getMonth() - nasc.getMonth();
-    if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) idade--;
-    return idade + " anos";
-  }
-
-  function isElegivel(vereador, cargo) {
-    const alvo = cargo + 1;
-    const atual = vereador.cargo_atual;
-    if (atual === 0) return true;
-    if (atual === alvo) return false;
-    if (alvo > atual) return false;
-    return true;
-  }
-
-  /**************************************************************************
-   * Firebase listener (AO VIVO)
-   **************************************************************************/
-  onValue(dbRef, (snapshot) => {
-    const val = snapshot.val() || {};
-    localState.dados = {
-      indiceCargo: parseInt(safeGet(val.indiceCargo, 0)),
-      votos: val.votos ? Object.values(val.votos) : [],
-      historico: safeGet(val.historico, {}),
-      status: safeGet(val.status, "votando"),
-      encerrado: safeGet(val.encerrado, false)
+      const btn = el("btn-login");
+      if (btn) { btn.innerText = "ADMIN"; btn.classList.add("text-red-600", "font-bold"); }
     };
-    renderizarTela(localState.dados);
-  });
 
-  /**************************************************************************
-   * Admin - enviar/editar votos
-   **************************************************************************/
-  window.setCargo = function (index) {
-    if (!localState.isAdmin) return;
-    if (!confirm(`Trocar para ${CARGOS[index]}?`)) return;
+    /**************************************************************************
+     * Ações admin (setCargo, enviarVoto, removerUltimoVoto, finalizar, resetar)
+     **************************************************************************/
+    window.setCargo = function (index) {
+      if (!localState.isAdmin) return alert("Acesso negado.");
+      if (!confirm(`Mudar para ${CARGOS[index]}?`)) return;
 
-    update(dbRef, {
-      indiceCargo: index,
-      votos: [],
-      status: "votando",
-      encerrado: false
-    });
-  };
-
-  window.enviarVoto = function (nome) {
-    if (!localState.isAdmin) return;
-
-    const atual = localState.dados.votos || [];
-
-    if (atual.length >= TOTAL_VOTOS)
-      return alert("Votos completos.");
-
-    const novos = [...atual, nome];
-    let updates = { votos: novos };
-
-    if (novos.length === TOTAL_VOTOS) {
-      const res = calcularResultado(novos);
-      const hist = { ...localState.dados.historico };
-      hist[CARGOS[localState.dados.indiceCargo]] = res;
-
-      updates.historico = hist;
-      updates.status = "encerrado_cargo";
-    }
-
-    update(dbRef, updates);
-  };
-
-  window.removerUltimoVoto = function () {
-    if (!localState.isAdmin) return;
-
-    const atual = localState.dados.votos || [];
-    if (atual.length === 0) return;
-
-    const novos = atual.slice(0, -1);
-    const updates = { votos: novos, status: "votando" };
-
-    if (localState.dados.status === "encerrado_cargo") {
-      const hist = { ...localState.dados.historico };
-      delete hist[CARGOS[localState.dados.indiceCargo]];
-      updates.historico = hist;
-    }
-
-    update(dbRef, updates);
-  };
-
-  window.finalizarEleicao = function () {
-    if (!localState.isAdmin) return;
-
-    const qtd = Object.keys(localState.dados.historico || {}).length;
-    if (qtd < CARGOS.length && !confirm(`Faltam cargos. Encerrar assim mesmo?`)) return;
-
-    update(dbRef, { encerrado: true, status: "finalizado_total" });
-  };
-
-  window.resetarSistema = function () {
-    if (!localState.isAdmin) return;
-    if (!confirm("ZERAR TUDO?")) return;
-
-    set(dbRef, {
-      indiceCargo: 0,
-      votos: [],
-      historico: {},
-      status: "votando",
-      encerrado: false
-    });
-  };
-
-  /**************************************************************************
-   * Cálculo do vencedor
-   **************************************************************************/
-  function calcularResultado(votos) {
-    const cont = {};
-    votos.forEach(v => cont[v] = (cont[v] || 0) + 1);
-
-    const ord = Object.entries(cont).sort((a, b) => b[1] - a[1]);
-    const primeiro = ord[0];
-    const empatados = ord.filter(x => x[1] === primeiro[1]);
-
-    if (empatados.length === 1) {
-      return { vencedor: primeiro[0], votos: primeiro[1], motivo: "Maioria simples", detalhes: [] };
-    }
-
-    // desempate por idade
-    const candidatos = empatados
-      .map(e => VEREADORES.find(v => v.nome === e[0]))
-      .filter(Boolean)
-      .sort((a, b) => calcularDiasVida(a.nasc) - calcularDiasVida(b.nasc)); // mais velho primeiro
-
-    const vencedor = candidatos[0];
-
-    return {
-      vencedor: vencedor.nome,
-      votos: primeiro[1],
-      motivo: "Critério de idade",
-      detalhes: candidatos.map(c => ({ nome: c.nome, idade: getTextoIdade(c.nasc) }))
+      update(dbRef, { indiceCargo: index, votos: [], status: "votando", encerrado: false })
+        .catch(e => console.error("Erro setCargo:", e));
     };
-  }
 
-  /**************************************************************************
-   * Render (a tua função completa continua igual)
-   **************************************************************************/
-  window.renderizarTela = function (data) {
-    /*  
-      IMPORTANTE:
-      Aqui você reutiliza exatamente o MESMO código de renderização 
-      que já está funcionando no teu HTML.
-      
-      NÃO precisa mudar nada na parte visual.
+    window.enviarVoto = function (nome) {
+      if (!localState.isAdmin) return;
+      const votos = safeGet(localState.dados.votos, []);
+      if (votos.length >= TOTAL_VOTOS) return alert("Votos completos.");
 
-      Só mantém tua função de UI como está,
-      porque ela já é grande e está ok.
-    */
-  };
-</script>
+      const novos = [...votos, nome];
+      const updates = { votos: novos };
+
+      if (novos.length === TOTAL_VOTOS) {
+        const res = calcularVencedorLocal(novos);
+        const hist = { ...(safeGet(localState.dados.historico, {})) };
+        hist[CARGOS[safeGet(localState.dados.indiceCargo, 0)]] = res;
+        updates.historico = hist;
+        updates.status = "encerrado_cargo";
+      }
+
+      update(dbRef, updates).catch(e => console.error("Erro enviarVoto:", e));
+    };
+
+    window.removerUltimoVoto = function () {
+      if (!localState.isAdmin) return;
+      const votos = safeGet(localState.dados.votos, []);
+      if (votos.length === 0) return;
+      const novos = votos.slice(0, -1);
+      const updates = { votos: novos, status: "votando" };
+
+      if (localState.dados.status === "encerrado_cargo") {
+        const hist = { ...(safeGet(localState.dados.historico, {})) };
+        delete hist[CARGOS[safeGet(localState.dados.indiceCargo, 0)]];
+        updates.historico = hist;
+      }
+
+      update(dbRef, updates).catch(e => console.error("Erro removerUltimoVoto:", e));
+    };
+
+    window.finalizarEleicao = function () {
+      if (!localState.isAdmin) return;
+      const qtd = Object.keys(safeGet(localState.dados.historico, {})).length;
+      if (qtd < CARGOS.length && !confirm(`Atenção: Só ${qtd}/${CARGOS.length} cargos definidos. Encerrar?`)) return;
+      update(dbRef, { encerrado: true, status: "finalizado_total" }).catch(e => console.error("Erro finalizarEleicao:", e));
+    };
+
+    window.resetarSistema = function () {
+      if (!localState.isAdmin) return;
+      if (!confirm("ZERAR TUDO?")) return;
+      set(dbRef, { indiceCargo: 0, votos: [], historico: {}, status: "votando", encerrado: false })
+        .catch(e => console.error("Erro resetarSistema:", e));
+    };
+
+    /**************************************************************************
+     * Cálculo do vencedor (mesma lógica, robusta)
+     **************************************************************************/
+    function calcularVencedorLocal(votos) {
+      if (!votos || votos.length === 0) return null;
+      const cont = {}; votos.forEach(v => cont[v] = (cont[v] || 0) + 1);
+      const ord = Object.entries(cont).sort((a,b) => b[1] - a[1]);
+      const prim = ord[0];
+      const emp = ord.filter(i => i[1] === prim[1]);
+
+      let venc = "", mot = "", det = [];
+      if (emp.length === 1) {
+        venc = prim[0]; mot = "Maioria Simples";
+      } else {
+        const cEmp = emp.map(e => e[0])
+          .filter(n => n !== "NULO" && n !== "NULO/BRANCO" && n !== "BRANCO")
+          .map(nome => VEREADORES.find(v => v.nome === nome))
+          .filter(Boolean);
+
+        if (!cEmp.length) { venc = "NENHUM"; mot = "Empate Nulo"; }
+        else {
+          cEmp.sort((a,b) => calcularDiasVida(b.nasc) - calcularDiasVida(a.nasc)); // mais velho primeiro
+          venc = cEmp[0].nome; mot = "Critério de Idade (Mais Velho)";
+          det = cEmp.map(v => ({ nome: v.nome, idade: getTextoIdade(v.nasc) }));
+        }
+      }
+      return { vencedor: venc, votos: prim[1], motivo: mot, detalhes: det };
+    }
+
+    /**************************************************************************
+     * Renderização central (segura)
+     **************************************************************************/
+    function renderizarTela(data) {
+      data = data || { indiceCargo: 0, votos: [], historico: {}, status: "votando", encerrado: false };
+
+      // Se encerrado totalmente
+      if (data.encerrado === true) {
+        hideAllMainViews();
+        el("view-encerramento")?.classList.remove("hidden");
+        preencherResumoFinal(data);
+        return;
+      }
+
+      // normal
+      el("view-encerramento")?.classList.add("hidden");
+      el("painel-status")?.classList.remove("hidden");
+
+      // alterna views admin/publico baseado no estado local (garantido após login)
+      if (localState.isAdmin) {
+        el("view-admin")?.classList.remove("hidden");
+        el("view-publica")?.classList.add("hidden");
+      } else {
+        el("view-admin")?.classList.add("hidden");
+        el("view-publica")?.classList.remove("hidden");
+      }
+
+      // atualiza cargo e progresso
+      const cargo = CARGOS[safeGet(data.indiceCargo, 0)] || "—";
+      const votos = safeGet(data.votos, []);
+      el("titulo-cargo") && (el("titulo-cargo").innerText = cargo);
+      el("status-badge") && (el("status-badge").innerText = votos.length < TOTAL_VOTOS ? `Voto ${votos.length + 1}/${TOTAL_VOTOS}` : "Fim");
+      el("barra-progresso") && (el("barra-progresso").style.width = `${(votos.length / TOTAL_VOTOS) * 100}%`);
+      el("msg-publica") && (el("msg-publica").innerText = votos.length < TOTAL_VOTOS ? "Votando..." : "Encerrado.");
+
+      // preencher placar lateral
+      preencherPlacar(votos);
+
+      // montar grid admin (se admin)
+      if (localState.isAdmin) preencherGridAdmin(data);
+
+      // mostrar resultado do cargo se encerrado do cargo
+      if (data.status === "encerrado_cargo") {
+        mostrarResultadoCargo(data, cargo);
+      } else {
+        el("view-resultado")?.classList.add("hidden");
+        if (!localState.isAdmin) el("view-publica")?.classList.remove("hidden");
+      }
+
+      // histórico lateral
+      preencherHistorico(data);
+    }
+
+    /**************************************************************************
+     * Funções UI auxiliares (seguras)
+     **************************************************************************/
+    function hideAllMainViews() {
+      ["view-publica","view-admin","view-resultado","view-encerramento","tela-final"].forEach(id => el(id)?.classList.add("hidden"));
+    }
+
+    function preencherPlacar(votos) {
+      const pl = el("lista-placar");
+      if (!pl) return;
+      pl.innerHTML = "";
+      const cont = {};
+      (votos || []).forEach(v => cont[v] = (cont[v] || 0) + 1);
+      const ord = Object.entries(cont).sort((a,b) => b[1] - a[1]);
+      ord.forEach(([nm,qtd]) => {
+        const p = (qtd / TOTAL_VOTOS) * 100;
+        pl.insertAdjacentHTML("beforeend", `
+          <div class="mb-3">
+            <div class="flex justify-between text-xs font-bold mb-1"><span>${nm}</span><span>${qtd}</span></div>
+            <div class="w-full bg-slate-200 h-2 rounded-full">
+              <div class="bg-blue-600 h-full rounded-full transition-all" style="width:${p}%"></div>
+            </div>
+          </div>`);
+      });
+    }
+
+    function preencherGridAdmin(data) {
+      const grid = el("grid-botoes-admin");
+      if (!grid) return;
+      grid.innerHTML = "";
+      const eleitos = Object.values(safeGet(data.historico, {})).map(h => h.vencedor);
+      const votos = safeGet(data.votos, []);
+
+      VEREADORES.forEach(v => {
+        if (!eleitos.includes(v.nome) && isElegivel(v, data.indiceCargo)) {
+          const btn = document.createElement("button");
+          btn.className = "bg-white border hover:bg-blue-50 p-3 rounded text-sm font-bold text-left candidate-btn";
+          btn.textContent = v.nome;
+          if (votos.length >= TOTAL_VOTOS) btn.disabled = true;
+          btn.addEventListener("click", () => enviarVoto(v.nome));
+          grid.appendChild(btn);
+        }
+      });
+
+      el("btn-nulo") && (el("btn-nulo").disabled = votos.length >= TOTAL_VOTOS);
+      el("btn-desfazer") && (el("btn-desfazer").disabled = votos.length === 0);
+    }
+
+    function mostrarResultadoCargo(data, cargoNome) {
+      const hist = safeGet(data.historico, {})[cargoNome] || null;
+      if (!hist) return;
+      el("res-vencedor") && (el("res-vencedor").innerText = hist.vencedor || "—");
+      el("res-detalhe") && (el("res-detalhe").innerText = hist.motivo || "");
+      const det = el("area-detalhe-empate"), lista = el("lista-desempate");
+      if (hist.detalhes && hist.detalhes.length) {
+        det?.classList.remove("hidden");
+        lista && (lista.innerHTML = hist.detalhes.map(d => `<div>${d.nome}: ${d.idade}</div>`).join(""));
+      } else {
+        det?.classList.add("hidden");
+        if (lista) lista.innerHTML = "";
+      }
+      el("view-resultado")?.classList.remove("hidden");
+      if (!localState.isAdmin) el("view-publica")?.classList.add("hidden");
+    }
+
+    function preencherHistorico(data) {
+      const hl = el("lista-historico");
+      if (!hl) return;
+      hl.innerHTML = "";
+      (CARGOS || []).forEach(c => {
+        if (data.historico && data.historico[c]) {
+          hl.insertAdjacentHTML("beforeend", `
+            <div class="bg-white p-3 rounded border-l-4 border-green-500 shadow-sm mb-2">
+              <p class="text-[10px] font-bold text-slate-400 uppercase">${c}</p>
+              <p class="font-bold text-slate-800">${data.historico[c].vencedor}</p>
+            </div>`);
+        }
+      });
+    }
+
+    function preencherResumoFinal(data) {
+      const list = el("resumo-final-lista");
+      if (!list) return;
+      list.innerHTML = "";
+      (CARGOS || []).forEach(c => {
+        if (data.historico && data.historico[c]) {
+          const h = data.historico[c];
+          list.insertAdjacentHTML("beforeend", `
+            <div class="flex justify-between border-b border-slate-100 pb-2">
+              <span class="text-xs font-bold text-slate-500 w-1/3 text-left">${c}</span>
+              <span class="text-sm font-bold text-slate-800 w-1/3 text-center">${h.vencedor}</span>
+              <span class="text-xs text-slate-400 w-1/3 text-right">${h.votos} votos</span>
+            </div>`);
+        }
+      });
+    }
+
+    /**************************************************************************
+     * Relatório / Ata
+     **************************************************************************/
+    function gerarRelatorioFinal() {
+      const hist = safeGet(localState.dados.historico, {});
+      const body = el("corpo-tabela-ata");
+      if (!body) return;
+      body.innerHTML = "";
+      el("data-impressao") && (el("data-impressao").innerText = new Date().toLocaleString());
+
+      (CARGOS || []).forEach(c => {
+        if (hist[c]) {
+          const pct = ((hist[c].votos / TOTAL_VOTOS) * 100).toFixed(1);
+          body.insertAdjacentHTML("beforeend", `<tr><td>${c}</td><td style="font-weight:bold">${hist[c].vencedor}</td><td>${hist[c].votos} (${pct}%)</td><td>${hist[c].motivo}</td></tr>`);
+        }
+      });
+
+      el("tela-final")?.classList.remove("hidden");
+      el("view-encerramento")?.classList.add("hidden");
+    }
+
+    function fecharAta() {
+      el("tela-final")?.classList.add("hidden");
+      el("view-encerramento")?.classList.remove("hidden");
+    }
+
+    // tornar algumas funções acessíveis globalmente (botões do HTML chamam essas)
+    window.gerarRelatorioFinal = gerarRelatorioFinal;
+    window.fecharAta = fecharAta;
+    window.enviarVoto = window.enviarVoto || window.enviarVoto; // garantia
+
+    /**************************************************************************
+     * Fim
+     **************************************************************************/
+  </script>
 </body>
 </html>
-
-
