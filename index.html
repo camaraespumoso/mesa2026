@@ -36,38 +36,8 @@
             .assinatura-box { border-top: 1px solid #000; width: 40%; text-align: center; padding-top: 5px; font-size: 10pt; }
         }
     </style>
-    
-    <!-- Tratamento de Erros Global -->
-    <script>
-        window.onerror = function(msg, url, line, col, error) {
-            console.error("Erro Global:", msg, error);
-            if (msg.toLowerCase().indexOf('script error') > -1) return; 
-            // alert("Ocorreu um erro no sistema: " + msg); // Comentado para não interromper fluxo
-        };
-    </script>
 </head>
 <body class="h-screen flex flex-col overflow-hidden text-slate-800">
-
-    <!-- Configuração Firebase -->
-    <script>
-        const firebaseConfig = {
-          apiKey: "AIzaSyA4bHOm0cNf57AKBb7ChGbIMPJdwEe06Jk",
-          authDomain: "mesaespumoso2026.firebaseapp.com",
-          databaseURL: "https://mesaespumoso2026-default-rtdb.firebaseio.com",
-          projectId: "mesaespumoso2026",
-          storageBucket: "mesaespumoso2026.firebasestorage.app",
-          messagingSenderId: "549506281878",
-          appId: "1:549506281878:web:381ea223d34b5620102db7"
-        };
-
-        try {
-            firebase.initializeApp(firebaseConfig);
-            var dbRef = firebase.database().ref('mesa2026');
-        } catch(e) {
-            console.error("Falha na inicialização do Firebase:", e);
-            alert("Erro crítico: Não foi possível conectar ao banco de dados.");
-        }
-    </script>
 
     <!-- Cabeçalho -->
     <header class="bg-white border-b border-slate-200 h-16 z-20 shadow-sm flex-shrink-0">
@@ -219,6 +189,17 @@
     </main>
 
     <script>
+        // --- CONFIGURAÇÃO FIREBASE ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyA4bHOm0cNf57AKBb7ChGbIMPJdwEe06Jk",
+          authDomain: "mesaespumoso2026.firebaseapp.com",
+          databaseURL: "https://mesaespumoso2026-default-rtdb.firebaseio.com",
+          projectId: "mesaespumoso2026",
+          storageBucket: "mesaespumoso2026.firebasestorage.app",
+          messagingSenderId: "549506281878",
+          appId: "1:549506281878:web:381ea223d34b5620102db7"
+        };
+
         // --- DADOS ---
         const VEREADORES = [
             {id: 1, nome: "Dayana Soares (PDT)", nasc: "1979-06-08", cargo_atual: 4},
@@ -230,8 +211,10 @@
             {id: 7, nome: "Tomas Fiuza (PP)", nasc: "1989-10-17", cargo_atual: 1},
         ];
         const CARGOS = ["PRESIDENTE", "VICE-PRESIDENTE", "SECRETÁRIO GERAL", "SECRETÁRIO ADJUNTO"];
+        
+        // Variáveis Globais (Declaradas uma única vez)
         let localState = { isAdmin: false, dados: {} };
-        let dbRef;
+        let dbRef; // Será inicializada no window.onload
 
         function calcularDiasVida(s) { return new Date(s).getTime(); }
         function formatarData(s) { const [a,m,d] = s.split('-'); return `${d}/${m}/${a}`; }
@@ -253,23 +236,26 @@
 
         // --- INICIALIZAÇÃO SEGURA ---
         window.onload = function() {
-            if (typeof firebase === 'undefined') return alert("Erro: Bibliotecas não carregadas.");
-            dbRef = firebase.database().ref('mesa2026');
-            
-            dbRef.on('value', (snapshot) => {
-                const val = snapshot.val() || {};
-                // GARANTIA DE TIPOS:
-                localState.dados = {
-                    indiceCargo: parseInt(val.indiceCargo) || 0,
-                    votos: val.votos ? Object.values(val.votos) : [], // Converte obj para array se necessario
-                    historico: val.historico || {},
-                    status: val.status || 'votando',
-                    encerrado: val.encerrado === true
-                };
-                renderizarTela(localState.dados);
-            }, (error) => {
-                console.error("Erro no DB:", error);
-            });
+            try {
+                if (typeof firebase === 'undefined') throw new Error("Firebase não carregado.");
+                firebase.initializeApp(firebaseConfig);
+                dbRef = firebase.database().ref('mesa2026');
+                
+                dbRef.on('value', (snapshot) => {
+                    const val = snapshot.val() || {};
+                    localState.dados = {
+                        indiceCargo: parseInt(val.indiceCargo) || 0,
+                        votos: val.votos ? Object.values(val.votos) : [],
+                        historico: val.historico || {},
+                        status: val.status || 'votando',
+                        encerrado: val.encerrado === true
+                    };
+                    renderizarTela(localState.dados);
+                });
+            } catch(e) {
+                console.error("Erro:", e);
+                alert("Erro ao iniciar: " + e.message);
+            }
         };
 
         // --- ADMIN ---
@@ -280,7 +266,7 @@
                 document.getElementById('view-admin').classList.remove('hidden');
                 document.getElementById('btn-login').innerHTML = 'ADMIN';
                 document.getElementById('btn-login').classList.add('text-red-600', 'font-bold');
-                renderizarTela(localState.dados); // Força re-render para mostrar botões
+                renderizarTela(localState.dados);
             } else alert("Senha incorreta.");
         }
 
@@ -359,7 +345,6 @@
         }
 
         function renderizarTela(data) {
-            // 1. Verifica Encerramento Global
             if (data.encerrado === true) {
                 document.getElementById('view-publica').classList.add('hidden');
                 document.getElementById('view-resultado').classList.add('hidden');
@@ -378,7 +363,6 @@
                 return;
             }
             
-            // Reset Encerramento
             document.getElementById('view-encerramento').classList.add('hidden');
             document.getElementById('painel-status').classList.remove('hidden');
             if(localState.isAdmin) document.getElementById('tela-votacao').classList.remove('hidden');
@@ -392,7 +376,6 @@
             document.getElementById('barra-progresso').style.width = `${(votos.length/9)*100}%`;
             document.getElementById('msg-publica').innerText = votos.length < 9 ? "Votando..." : "Encerrado.";
 
-            // Placar
             const pl = document.getElementById('lista-placar'); pl.innerHTML='';
             const cont={}; votos.forEach(v=>cont[v]=(cont[v]||0)+1);
             const ord=Object.entries(cont).sort((a,b)=>b[1]-a[1]);
@@ -401,9 +384,8 @@
                 pl.innerHTML+=`<div class="mb-3"><div class="flex justify-between text-xs font-bold mb-1"><span>${nm}</span><span>${qtd}</span></div><div class="w-full bg-slate-200 h-2 rounded-full"><div class="bg-blue-600 h-full rounded-full transition-all" style="width:${p}%"></div></div></div>`;
             });
 
-            // Botões Admin - RENDERIZAÇÃO FORÇADA SE ADMIN
-            const grid = document.getElementById('grid-botoes-admin'); grid.innerHTML='';
             if(localState.isAdmin) {
+                const grid = document.getElementById('grid-botoes-admin'); grid.innerHTML='';
                 const eleitos = Object.values(data.historico||{}).map(h=>h.vencedor);
                 VEREADORES.forEach(v=>{
                     if(!eleitos.includes(v.nome) && isElegivel(v, data.indiceCargo)) {
@@ -416,7 +398,6 @@
                 });
             }
 
-            // Resultado Parcial
             const telaRes = document.getElementById('view-resultado');
             if(data.status === 'encerrado_cargo') {
                 const hist = data.historico ? data.historico[cargo] : null;
@@ -436,7 +417,6 @@
                 telaRes.classList.add('hidden');
             }
             
-            // Histórico Lateral
             const hl = document.getElementById('lista-historico'); hl.innerHTML='';
             CARGOS.forEach(c=>{
                 if(data.historico && data.historico[c]) {
