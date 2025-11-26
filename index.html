@@ -28,6 +28,19 @@
     .small-btn { font-size: .75rem; padding: .5rem .75rem; }
     .candidate-btn { text-align: left; width: 100%; }
 
+    /* logout button styles */
+    .logout-badge {
+      background: #ffeef0;
+      color: #b91c1c;
+      border: 1px solid rgba(185,28,28,0.12);
+      padding: .35rem .6rem;
+      border-radius: .5rem;
+      font-weight: 700;
+      display: inline-flex;
+      gap: .4rem;
+      align-items: center;
+    }
+
     @media print {
       @page { margin: 1.5cm; size: A4; }
       body { background: white; color: black; -webkit-print-color-adjust: exact; }
@@ -45,13 +58,14 @@
 <body class="h-screen flex flex-col overflow-hidden text-slate-800">
 
   <!-- HEADER -->
-  <header class="bg-white border-b border-slate-200 h-16 z-20 shadow-sm flex-shrink-0">
+  <header class="bg-white border-b border-slate-200 h-20 z-20 shadow-sm flex-shrink-0">
     <div class="container mx-auto h-full flex justify-between items-center px-4">
-      <div class="flex items-center gap-3">
-        <div class="bg-blue-800 text-white font-black px-2 py-1 rounded text-lg">MESA DIRETORA 26</div>
+      <div class="flex items-center gap-4">
         <div>
-          <h1 class="font-bold text-slate-800 leading-none">Apuração Ao Vivo</h1>
-          <p class="text-[10px] text-slate-500 uppercase font-bold">Câmara de Espumoso - RS</p>
+          <!-- You asked for 'MESA DIRETORA 2026' here -->
+          <div class="text-sm text-slate-500">ELEIÇÃO</div>
+          <div class="text-2xl font-extrabold text-slate-800 leading-tight">MESA DIRETORA</div>
+          <div class="text-sm font-bold text-slate-600">2026</div>
         </div>
       </div>
 
@@ -59,13 +73,23 @@
         <div id="conn-indicator" class="hidden md:flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs font-bold text-slate-600">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse-fast"></span> Conectado
         </div>
-        <button id="btn-login" onclick="loginAdmin()" class="text-xs text-slate-400 hover:text-blue-600 underline no-print small-btn">Acesso Restrito</button>
+
+        <div id="login-area" class="flex items-center gap-2">
+          <button id="btn-login" onclick="loginAdmin()" class="text-xs text-slate-400 hover:text-blue-600 underline no-print small-btn">
+            Acesso Restrito
+          </button>
+
+          <button id="btn-logout" onclick="logoutAdmin()" class="hidden logout-badge no-print">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span>Sair</span>
+          </button>
+        </div>
       </div>
     </div>
   </header>
 
   <!-- MAIN -->
-  <main class="flex-grow container mx-auto p-4 flex flex-col md:flex-row gap-6 h-[calc(100vh-64px)] overflow-hidden">
+  <main class="flex-grow container mx-auto p-4 flex flex-col md:flex-row gap-6 h-[calc(100vh-80px)] overflow-hidden">
 
     <!-- Painel Principal -->
     <section class="w-full md:w-2/3 flex flex-col h-full overflow-y-auto pb-10 pr-2">
@@ -326,11 +350,25 @@
       localState.isAdmin = true;
       document.body.classList.add("show-admin");
 
+      // exibe botão de logout
+      el("btn-logout")?.classList.remove("hidden");
       // Força render admin num pequeno atraso para evitar corrida com listener
       setTimeout(() => renderizarTela(localState.dados), 60);
 
       const btn = el("btn-login");
       if (btn) { btn.innerText = "ADMIN"; btn.classList.add("text-red-600", "font-bold"); }
+    };
+
+    window.logoutAdmin = function () {
+      localState.isAdmin = false;
+      document.body.classList.remove("show-admin");
+      el("view-admin")?.classList.add("hidden");
+      el("btn-login") && (el("btn-login").innerText = "Acesso Restrito");
+      el("btn-login") && el("btn-login").classList.remove("text-red-600", "font-bold");
+      el("btn-logout")?.classList.add("hidden");
+
+      // força re-render público
+      setTimeout(() => renderizarTela(localState.dados), 40);
     };
 
     /**************************************************************************
@@ -489,7 +527,7 @@
       const cont = {};
       (votos || []).forEach(v => cont[v] = (cont[v] || 0) + 1);
       const ord = Object.entries(cont).sort((a,b) => b[1] - a[1]);
-      ord.forEach(([nm,qtd]) => {
+      ord.forEach(([nm, qtd]) => {
         const p = (qtd / TOTAL_VOTOS) * 100;
         pl.insertAdjacentHTML("beforeend", `
           <div class="mb-3">
@@ -598,10 +636,9 @@
       el("view-encerramento")?.classList.remove("hidden");
     }
 
-    // tornar algumas funções acessíveis globalmente (botões do HTML chamam essas)
+    // expor funções usadas diretamente pelo HTML
     window.gerarRelatorioFinal = gerarRelatorioFinal;
     window.fecharAta = fecharAta;
-    window.enviarVoto = window.enviarVoto || window.enviarVoto; // garantia
 
     /**************************************************************************
      * Fim
@@ -609,4 +646,3 @@
   </script>
 </body>
 </html>
-
